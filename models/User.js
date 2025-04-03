@@ -1,10 +1,14 @@
 import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema({
-    login: {
+    email: {
         type: String,
         required: true,
         unique: true,
+        match: [
+            /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+            'Пожалуйста, введите корректный email'
+        ]
     },
     passwordHash: {
         type: String,
@@ -12,7 +16,6 @@ const UserSchema = new mongoose.Schema({
     },
 }, {
     timestamps: true,
-},
-);
+});
 
 export default mongoose.model('User', UserSchema);

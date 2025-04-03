@@ -1,49 +1,40 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import cors from 'cors'
-
-import * as UserController from './controllers/UserController.js'
-import { registerValidation } from './validations/auth.js'
+import cors from 'cors';
+import * as AuthController from './controllers/AuthController.js';
+import { registerValidation } from './validations/registerValidation.js';
 import checkAuth from './utils/checkAuth.js';
 
-const port = 4334
+const port = 4334;
 
 mongoose
     .connect('mongodb+srv://admin:admin@cluster0.2hgd2.mongodb.net/diploma?retryWrites=true&w=majority&appName=Cluster0')
     .then(() => console.log('MongoDB connected'))
-    .catch((error) => console.log('MongoDB error ', error))
+    .catch((error) => console.log('MongoDB error ', error));
 
 const app = express();
-app.use(cors());
+
+// Обновлённая конфигурация CORS
+app.use(cors({
+    origin: 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
-
-app.post('/auth/login', UserController.login);
-app.post('/auth/register', registerValidation, UserController.register);
-app.get('/auth/me', checkAuth, UserController.getMe);
-
-app.get('*', (req, res) => {
-    res.json({
-        message: 'get request',
-    })
-});
-
-app.post('*', (req, res) => {
-    res.json({
-        message: 'post request',
-    })
-});
-
-app.delete('*', (req, res) => {
-    res.json({
-        message: 'delete request',
-    })
-});
+// Auth routes
+app.post('/auth/login', AuthController.login);
+app.post('/auth/register', registerValidation, AuthController.register);
+app.get('/auth/me', checkAuth, AuthController.getMe);
+app.post('/auth/logout', checkAuth, AuthController.logout);
+app.post('/auth/request-password-reset', AuthController.requestPasswordReset);
+app.post('/auth/reset-password', AuthController.resetPassword);
 
 app.listen(port, (error) => {
     if (error) {
         return console.log(error);
     }
-
-    console.log(`Server started. Port ${port}`)
-})
+    console.log(`Server started. Port ${port}`);
+});
