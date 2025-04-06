@@ -1,177 +1,164 @@
 import Experiment from '../models/Experiment.js';
+import Task from '../models/Task.js';
+import Session from '../models/Session.js';
 
 export const createExperiment = async (req, res) => {
   try {
-    const {
-      name,
-      mode,
-      efficiencyMin,
-      efficiencyMax,
-      initialTaskNumber,
-      seriesTime,
-      presentationsPerTask,
-      tasks
-    } = req.body;
-
-    // Получаем данные автора из токена
+    const { name, mode, efficiencyMin, efficiencyMax, initialTaskNumber, seriesTime, presentationsPerTask, tasks } = req.body;
     const author = req.userId;
-    const authorName = req.userName; // Предполагаем, что middleware добавило имя пользователя в req
 
-    // Валидация режимов
-    if (mode === 'strict') {
-      if (efficiencyMin !== null || efficiencyMax !== null || 
-          initialTaskNumber !== null || seriesTime !== null) {
-        return res.status(400).json({ 
-          message: 'Для strict режима efficiencyMin, efficiencyMax, initialTaskNumber и seriesTime должны быть null' 
-        });
-      }
+    // Валидация режима
+    if (mode === 'adaptive' && (!efficiencyMin || !efficiencyMax || !initialTaskNumber || !seriesTime)) {
+      return res.status(400).json({ message: 'Для adaptive режима все параметры обязательны' });
     }
 
-    // Валидация adaptive режима
-    if (mode === 'adaptive') {
-      if (efficiencyMin === null || efficiencyMax === null || 
-          initialTaskNumber === null || seriesTime === null) {
-        return res.status(400).json({ 
-          message: 'Для adaptive режима все параметры должны быть указаны' 
-        });
-      }
-      if (efficiencyMin > efficiencyMax) {
-        return res.status(400).json({ 
-          message: 'efficiencyMin не может быть больше efficiencyMax' 
-        });
-      }
-    }
+    const experimentTasks = tasks.map((task) => new Task(task))
+    experimentTasks.forEach(async (task) => {
+      await task.save()
+    });
 
-    // Создаем новый эксперимент
     const newExperiment = new Experiment({
       name,
       author,
-      authorName,
       mode,
-      efficiencyMin: mode === 'strict' ? null : efficiencyMin,
-      efficiencyMax: mode === 'strict' ? null : efficiencyMax,
-      initialTaskNumber: mode === 'strict' ? null : initialTaskNumber,
-      seriesTime: mode === 'strict' ? null : seriesTime,
+      ...(mode === 'adaptive' && {
+        efficiencyMin,
+        efficiencyMax,
+        initialTaskNumber,
+        seriesTime
+      }),
       presentationsPerTask,
-      tasks,
+      tasks: experimentTasks,
       sessions: []
     });
 
-    // Валидация задач
-    for (const task of newExperiment.tasks) {
-      if (task.rows < 1 || task.columns < 1 || 
-          task.symbolHeight < 1 || task.symbolWidth < 1 ||
-          task.verticalSpacing < 0 || task.horizontalSpacing < 0 ||
-          task.stimulusTime < 1 || task.responseTime < 1 || task.pauseTime < 1) {
-        return res.status(400).json({ 
-          message: 'Все числовые параметры задач должны быть ≥ 1' 
-        });
-      }
-    }
-
     const savedExperiment = await newExperiment.save();
-    
     res.status(201).json(savedExperiment);
   } catch (error) {
     console.error('Error creating experiment:', error);
-    res.status(500).json({ 
-      message: 'Ошибка при создании эксперимента',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Ошибка при создании эксперимента', error: error.message });
   }
 };
 
 export const getAllExperiments = async (req, res) => {
   try {
-    const { sort = '-createdAt', name } = req.query;
+    const { sort = '-createdAt', search } = req.query;
     const filter = {};
     
-    if (name) {
-      filter.name = { $regex: name, $options: 'i' };
+    if (search) {
+      filter.name = { $regex: search, $options: 'i' };
     }
 
     const experiments = await Experiment.find(filter)
       .sort(sort)
-      .select('-tasks -sessions')
-      .lean()
-      .exec();
+      .populate('author')
+      .lean();
 
-    // Добавляем количество задач и сессий
-    const result = experiments.map(exp => ({
-      ...exp,
-      tasksCount: exp.tasks ? exp.tasks.length : 0,
-      sessionsCount: exp.sessions ? exp.sessions.length : 0
+    // Получаем количество задач и сессий для каждого эксперимента
+    const experimentsWithCounts = await Promise.all(experiments.map(async exp => {
+      const [tasksCount, sessionsCount] = await Promise.all([
+        Task.countDocuments({ experiment: exp._id }),
+        Session.countDocuments({ experiment: exp._id })
+      ]);
+      
+      return {
+        ...exp,
+        tasksCount,
+        sessionsCount,
+        isMine: exp.author._id.toString() === req.userId
+      };
     }));
 
-    res.json(result);
+    res.json(experimentsWithCounts);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Ошибка при получении экспериментов' });
+    console.error('Error getting experiments:', error);
+    res.status(500).json({ message: 'Ошибка при получении экспериментов', error: error.message });
   }
 };
 
 export const getExperimentById = async (req, res) => {
   try {
     const experiment = await Experiment.findById(req.params.id)
-      .exec();
+      .populate('tasks');
 
     if (!experiment) {
       return res.status(404).json({ message: 'Эксперимент не найден' });
     }
 
-    res.json(experiment);
+    const sessionsCount = await Session.countDocuments({ experiment: experiment._id });
+    const experimentData = experiment.toObject();
+    
+    res.json({
+      ...experimentData,
+      sessionsCount,
+      isMine: experiment.author._id.toString() === req.userId
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Ошибка при получении эксперимента' });
+    console.error('Error getting experiment:', error);
+    res.status(500).json({ message: 'Ошибка при получении эксперимента', error: error.message });
   }
 };
 
 export const updateExperiment = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, mode, efficiencyMin, efficiencyMax, initialTaskNumber, seriesTime, presentationsPerTask } = req.body;
+    
     const experiment = await Experiment.findById(req.params.id);
-
     if (!experiment) {
       return res.status(404).json({ message: 'Эксперимент не найден' });
     }
 
-    // Проверяем, что пользователь - автор эксперимента
+    // Проверка прав
     if (experiment.author.toString() !== req.userId) {
       return res.status(403).json({ message: 'Нет прав на редактирование' });
     }
 
+    // Обновление полей
     experiment.name = name || experiment.name;
-    await experiment.save();
+    experiment.mode = mode || experiment.mode;
+    experiment.presentationsPerTask = presentationsPerTask || experiment.presentationsPerTask;
 
+    if (mode === 'adaptive') {
+      experiment.efficiencyMin = efficiencyMin;
+      experiment.efficiencyMax = efficiencyMax;
+      experiment.initialTaskNumber = initialTaskNumber;
+      experiment.seriesTime = seriesTime;
+    } else {
+      experiment.efficiencyMin = null;
+      experiment.efficiencyMax = null;
+      experiment.initialTaskNumber = null;
+      experiment.seriesTime = null;
+    }
+
+    await experiment.save();
     res.json(experiment);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Ошибка при обновлении эксперимента' });
+    console.error('Error updating experiment:', error);
+    res.status(500).json({ message: 'Ошибка при обновлении эксперимента', error: error.message });
   }
 };
 
 export const deleteExperiment = async (req, res) => {
   try {
     const experiment = await Experiment.findById(req.params.id);
-
     if (!experiment) {
       return res.status(404).json({ message: 'Эксперимент не найден' });
     }
 
-    // Проверяем, что пользователь - автор эксперимента
     if (experiment.author.toString() !== req.userId) {
       return res.status(403).json({ message: 'Нет прав на удаление' });
     }
 
-    // Используем deleteOne() вместо remove()
-    await Experiment.deleteOne({ _id: req.params.id });
-    
-    res.json({ message: 'Эксперимент успешно удален' });
+    // Удаляем связанные задачи и сессии
+    await Promise.all([
+      Task.deleteMany({ experiment: experiment._id }),
+      Session.deleteMany({ experiment: experiment._id }),
+      Experiment.deleteOne({ _id: experiment._id })
+    ]);
+
+    res.json({ message: 'Эксперимент и все связанные данные удалены' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ 
-      message: 'Ошибка при удалении эксперимента',
-      error: error.message 
-    });
+    console.error('Error deleting experiment:', error);
+    res.status(500).json({ message: 'Ошибка при удалении эксперимента', error: error.message });
   }
 };

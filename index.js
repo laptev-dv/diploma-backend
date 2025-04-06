@@ -6,6 +6,7 @@ import checkAuth from './utils/checkAuth.js';
 import * as ExperimentController from './controllers/ExperimentController.js';
 import * as AuthController from './controllers/AuthController.js';
 import * as SessionController from './controllers/SessionController.js';
+import * as FolderController from './controllers/FolderController.js';
 
 const port = 4334;
 
@@ -45,6 +46,15 @@ app.post('/experiments', checkAuth, ExperimentController.createExperiment);
 app.post('/sessions', checkAuth, SessionController.createSession);
 app.get('/experiments/:experimentId/sessions', checkAuth, SessionController.getSessionsByExperiment);
 app.delete('/sessions/:id', checkAuth, SessionController.deleteSession);
+app.get('/sessions/:id', checkAuth, SessionController.getSessionById);
+
+// Папки
+app.get('/folders', FolderController.getAllFolders);
+app.get('/folders/:id', FolderController.getFolderById);
+app.post('/folders', checkAuth, FolderController.createFolder);
+app.put('/folders/:id', checkAuth, FolderController.updateFolder);
+app.delete('/folders/:id', checkAuth, FolderController.deleteFolder);
+app.put('/folders/:id/experiments', checkAuth, FolderController.updateFolderExperiments);
 
 app.listen(port, (error) => {
     if (error) {

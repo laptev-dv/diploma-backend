@@ -1,6 +1,5 @@
 import Session from '../models/Session.js';
 import Experiment from '../models/Experiment.js';
-import checkAuth from '../utils/checkAuth.js';
 
 export const createSession = async (req, res) => {
   try {
@@ -9,32 +8,36 @@ export const createSession = async (req, res) => {
 
     // Проверяем существование эксперимента
     const experiment = await Experiment.findById(experimentId);
+
     if (!experiment) {
       return res.status(404).json({ message: 'Эксперимент не найден' });
     }
 
-    // Создаем новую сессию
+    // Проверяем, что все задачи существуют
+    const taskIds = experiment.tasks.map(task => task._id.toString());
+    const invalidTasks = results.filter(r => !taskIds.includes(r.taskId.toString()));
+
+    if (invalidTasks.length > 0) {
+      return res.status(400).json({ message: 'Некоторые задачи не найдены в эксперименте' });
+    }
+
     const newSession = new Session({
-      experimentId,
-      userId,
-      userName: req.userName, // Предполагаем, что middleware добавило имя пользователя
-      results,
-      duration: calculateDuration(results)
+      experiment: experimentId,
+      user: userId,
+      results: results.map(result => ({
+        task: result.taskId,
+        presentations: result.presentations
+      }))
     });
 
     const savedSession = await newSession.save();
-
-    // Добавляем сессию в эксперимент
     experiment.sessions.push(savedSession._id);
     await experiment.save();
 
     res.status(201).json(savedSession);
   } catch (error) {
     console.error('Error creating session:', error);
-    res.status(500).json({ 
-      message: 'Ошибка при создании сессии',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Ошибка при создании сессии', error: error.message });
   }
 };
 
@@ -42,69 +45,118 @@ export const getSessionsByExperiment = async (req, res) => {
   try {
     const { experimentId } = req.params;
 
-    const sessions = await Session.find({ experimentId })
-      .populate('userId', 'username')
-      .sort({ date: -1 });
+    const sessions = await Session.find({ experiment: experimentId })
+      .populate('user', 'username')
+      .populate('results.task')
+      .sort({ createdAt: -1 });
 
     res.json(sessions.map(session => ({
       ...session.toObject(),
-      isMine: session.userId._id.toString() === req.userId
+      isMine: session.user._id.toString() === req.userId
     })));
   } catch (error) {
-    console.error('Error fetching sessions:', error);
-    res.status(500).json({ 
-      message: 'Ошибка при получении сессий',
-      error: error.message 
-    });
+    console.error('Error getting sessions:', error);
+    res.status(500).json({ message: 'Ошибка при получении сессий', error: error.message });
+  }
+};
+
+export const getSessionById = async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id)
+    .populate('experiment')
+    .populate('results.task');
+
+    if (!session) {
+      return res.status(404).json({ message: 'Сессия не найдена' });
+    }
+
+    // Проверка прав доступа
+    if (session.user._id.toString() !== req.userId && 
+        session.experiment.author.toString() !== req.userId) {
+      return res.status(403).json({ message: 'Нет прав на просмотр этой сессии' });
+    }
+
+    const sessionData = session.toObject();
+    sessionData.results = calculateDetailedStats(session.results);
+    sessionData.isMine = session.user._id.toString() === req.userId;
+
+    res.json(sessionData);
+  } catch (error) {
+    console.error('Error getting session:', error);
+    res.status(500).json({ message: 'Ошибка при получении сессии', error: error.message });
   }
 };
 
 export const deleteSession = async (req, res) => {
   try {
     const session = await Session.findById(req.params.id)
-      .populate('experimentId', 'author');
+      .populate('experiment', 'author');
 
     if (!session) {
       return res.status(404).json({ message: 'Сессия не найдена' });
     }
 
-    // Проверяем права: автор эксперимента или создатель сессии
-    const isExperimentAuthor = session.experimentId.author.toString() === req.userId;
-    const isSessionOwner = session.userId.toString() === req.userId;
-
-    if (!isExperimentAuthor && !isSessionOwner) {
+    // Проверка прав
+    const isOwner = session.user.toString() === req.userId;
+    const isExperimentAuthor = session.experiment.author.toString() === req.userId;
+    
+    if (!isOwner && !isExperimentAuthor) {
       return res.status(403).json({ message: 'Нет прав на удаление сессии' });
     }
 
-    // Удаляем сессию
-    await Session.deleteOne({ _id: req.params.id });
-
-    // Удаляем ссылку на сессию из эксперимента
-    await Experiment.updateOne(
-      { _id: session.experimentId._id },
-      { $pull: { sessions: req.params.id } }
-    );
+    // Удаляем сессию и ссылку из эксперимента
+    await Promise.all([
+      Session.deleteOne({ _id: session._id }),
+      Experiment.updateOne(
+        { _id: session.experiment._id },
+        { $pull: { sessions: session._id } }
+      )
+    ]);
 
     res.json({ message: 'Сессия успешно удалена' });
   } catch (error) {
     console.error('Error deleting session:', error);
-    res.status(500).json({ 
-      message: 'Ошибка при удалении сессии',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Ошибка при удалении сессии', error: error.message });
   }
 };
 
-// Вспомогательная функция для расчета длительности
-function calculateDuration(results) {
-  if (!results || !results.length) return 0;
-  
-  let totalDuration = 0;
-  results.forEach(task => {
-    task.presentations.forEach(presentation => {
-      totalDuration += (presentation.responseTime || 0) + (presentation.pauseTime || 0);
+// Вспомогательная функция для расчета статистики
+function calculateDetailedStats(results) {
+  return results.map(taskResult => {
+    const stats = {
+      _id: taskResult._id,
+      task: taskResult.task,
+      presentations: taskResult.presentations,
+      successCount: 0,
+      errorCount: 0,
+      missCount: 0,
+      totalResponseTime: 0
+    };
+
+    taskResult.presentations.forEach(presentation => {
+      if (presentation.userAnswer.row && presentation.userAnswer.column) {
+        const isCorrect = 
+          presentation.userAnswer.row === presentation.correctAnswer.row &&
+          presentation.userAnswer.column === presentation.correctAnswer.column;
+        
+        if (isCorrect) {
+          stats.successCount++;
+        } else {
+          stats.errorCount++;
+        }
+
+        if (presentation.responseTime) {
+          stats.totalResponseTime += presentation.responseTime;
+        }
+      } else {
+        stats.missCount++;
+      }
     });
+
+    return {
+      ...stats,
+      avgResponseTime: stats.totalResponseTime / taskResult.presentations.length,
+      efficiency: stats.successCount / taskResult.presentations.length
+    };
   });
-  
-  return totalDuration;
 }

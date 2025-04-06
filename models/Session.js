@@ -1,25 +1,49 @@
 import mongoose from 'mongoose';
 
-const presentationResultSchema = new mongoose.Schema({
-  responseTime: Number,
-  correctAnswer: { row: Number, column: Number },
-  userAnswer: { row: Number, column: Number },
-  outcome: { type: String, enum: ['success', 'error', 'miss'] }
-});
+const presentationResultSchema = new mongoose.Schema(
+  {
+    responseTime: Number,
+    correctAnswer: {
+      row: { type: Number },
+      column: { type: Number },
+    },
+    userAnswer: {
+      row: { type: Number },
+      column: { type: Number },
+    },
+  },
+  { _id: false }
+);
 
 const taskResultSchema = new mongoose.Schema({
-  taskId: { type: mongoose.Schema.Types.ObjectId, ref: 'Experiment.tasks' },
-  taskName: String,
-  presentations: [presentationResultSchema]
-});
+  task: { 
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Task',
+    required: true
+  },
+  presentations: [presentationResultSchema],
+}, { _id: true });
 
 const sessionSchema = new mongoose.Schema({
-  experimentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Experiment', required: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  userName: String,
-  date: { type: Date, default: Date.now },
-  duration: { type: Number, min: 0 },
-  results: [taskResultSchema]
-});
+  experiment: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Experiment', 
+    required: true 
+  },
+  user: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true
+  },
+  results: [taskResultSchema],
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+}, { timestamps: true });
+
+sessionSchema.index({ experiment: 1 });
+sessionSchema.index({ user: 1 });
+sessionSchema.index({ createdAt: -1 });
 
 export default mongoose.model('Session', sessionSchema);
