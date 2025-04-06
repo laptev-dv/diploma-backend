@@ -5,6 +5,7 @@ import { registerValidation } from './validations/registerValidation.js';
 import checkAuth from './utils/checkAuth.js';
 import * as ExperimentController from './controllers/ExperimentController.js';
 import * as AuthController from './controllers/AuthController.js';
+import * as SessionController from './controllers/SessionController.js';
 
 const port = 4334;
 
@@ -39,6 +40,11 @@ app.get('/experiments/:id', ExperimentController.getExperimentById);
 app.put('/experiments/:id', checkAuth, ExperimentController.updateExperiment);
 app.delete('/experiments/:id', checkAuth, ExperimentController.deleteExperiment);
 app.post('/experiments', checkAuth, ExperimentController.createExperiment);
+
+// Сессии
+app.post('/sessions', checkAuth, SessionController.createSession);
+app.get('/experiments/:experimentId/sessions', checkAuth, SessionController.getSessionsByExperiment);
+app.delete('/sessions/:id', checkAuth, SessionController.deleteSession);
 
 app.listen(port, (error) => {
     if (error) {
