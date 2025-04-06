@@ -1,9 +1,10 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import * as AuthController from './controllers/AuthController.js';
 import { registerValidation } from './validations/registerValidation.js';
 import checkAuth from './utils/checkAuth.js';
+import * as ExperimentController from './controllers/ExperimentController.js';
+import * as AuthController from './controllers/AuthController.js';
 
 const port = 4334;
 
@@ -31,6 +32,13 @@ app.get('/auth/me', checkAuth, AuthController.getMe);
 app.post('/auth/logout', checkAuth, AuthController.logout);
 app.post('/auth/request-password-reset', AuthController.requestPasswordReset);
 app.post('/auth/reset-password', AuthController.resetPassword);
+
+// Эксперименты
+app.get('/experiments', ExperimentController.getAllExperiments);
+app.get('/experiments/:id', ExperimentController.getExperimentById);
+app.put('/experiments/:id', checkAuth, ExperimentController.updateExperiment);
+app.delete('/experiments/:id', checkAuth, ExperimentController.deleteExperiment);
+app.post('/experiments', checkAuth, ExperimentController.createExperiment);
 
 app.listen(port, (error) => {
     if (error) {
