@@ -18,21 +18,18 @@ mongoose
 const app = express();
 
 const allowedOrigins = [
-  'http://localhost:3000',
-  'http://192.168.1.245:3000',
+  "http://localhost:3000",
+  "http://192.168.1.245:3000",
+  "http://192.168.1.245:*",
+  "http://192.168.1.245",
+  "http://151.0.48.140",
+  "http://151.0.48.140:3000",
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Разрешить запросы без origin (например, Postman, мобильные приложения)
-      if (!origin) return callback(null, true);
-      
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
+      return callback(null, true);
     },
     credentials: true,
   })
