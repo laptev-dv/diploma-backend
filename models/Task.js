@@ -12,9 +12,9 @@ const taskSchema = new mongoose.Schema({
   symbolWidth: { type: Number, min: 1 },
   verticalSpacing: { type: Number, min: 0 },
   horizontalSpacing: { type: Number, min: 0 },
-  stimulusTime: { type: Number, min: 1 },
-  responseTime: { type: Number, min: 1 },
-  pauseTime: { type: Number, min: 1 },
+  stimulusTime: { type: Number, min: 0 },
+  responseTime: { type: Number, min: 0 },
+  pauseTime: { type: Number, min: 0 },
 }, { timestamps: true });
 
 export default mongoose.model('Task', taskSchema);
