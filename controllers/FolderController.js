@@ -31,8 +31,7 @@ export const getAllFolders = async (req, res) => {
 export const getFolderById = async (req, res) => {
   try {
     const folder = await Folder.findById(req.params.id)
-      .populate('author', 'username')
-      .populate('experiments', 'name mode createdAt');
+      .populate('experiments');
 
     if (!folder) {
       return res.status(404).json({ message: 'Папка не найдена' });

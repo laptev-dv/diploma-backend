@@ -17,13 +17,26 @@ mongoose
 
 const app = express();
 
-// Обновлённая конфигурация CORS
-app.use(cors({
-    origin: 'http://localhost:3000',
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://192.168.1.245:3000',
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Разрешить запросы без origin (например, Postman, мобильные приложения)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  })
+);
 
 app.use(express.json());
 

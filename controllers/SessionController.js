@@ -159,6 +159,7 @@ function calculateDetailedStats(results) {
     const workload = taskResult.task.rows * taskResult.task.columns / (taskResult.task.stimulusTime + taskResult.task.responseTime);
     const entropy = efficiency * Math.log2(efficiency) + (1 - efficiency) * Math.log2(1 - efficiency);
     const performance = 0;
+    const totalDuration = 0;
 
     return {
       ...stats,
@@ -167,7 +168,8 @@ function calculateDetailedStats(results) {
       performance: performance,
       workload: workload,
       avgResponseTime: avgResponseTime,
-      efficiency: efficiency
+      efficiency: efficiency,
+      totalDuration: totalDuration,
     };
   });
 }

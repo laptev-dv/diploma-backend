@@ -22,7 +22,19 @@ const taskResultSchema = new mongoose.Schema({
     required: true
   },
   presentations: [presentationResultSchema],
-}, { _id: true });
+}, { 
+  _id: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Виртуальное поле для суммы responseTime в presentations
+taskResultSchema.virtual('resultTotalTime').get(function() {
+  if (!this.presentations) return 0;
+  return this.presentations.reduce((total, presentation) => {
+    return total + (presentation.responseTime || 0);
+  }, 0);
+});
 
 const sessionSchema = new mongoose.Schema({
   experiment: { 
@@ -40,7 +52,21 @@ const sessionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Виртуальное поле для суммы всех resultTotalTime в results
+sessionSchema.virtual('totalSeriesTime').get(function() {
+  if (!this.results) return 0;
+  return this.results.reduce((total, taskResult) => {
+    // Используем get() если это поддокумент, или обращаемся напрямую если виртуальное поле
+    const taskTime = taskResult.get ? taskResult.get('resultTotalTime') : taskResult.resultTotalTime;
+    return total + (taskTime || 0);
+  }, 0);
+});
 
 sessionSchema.index({ experiment: 1 });
 sessionSchema.index({ user: 1 });
