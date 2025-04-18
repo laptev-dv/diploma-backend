@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
-  service: 'Gmail', // Или другой SMTP-сервис
+  service: 'Gmail', // или другой сервис
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -9,15 +9,15 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendResetEmail = async (email, token) => {
-  const resetUrl = `http://yourfrontend.com/reset-password?token=${token}`;
+  const resetLink = `http://your-frontend-url/reset-password?token=${token}`;
   
   const mailOptions = {
-    from: process.env.EMAIL_FROM,
+    from: process.env.EMAIL_USER,
     to: email,
     subject: 'Сброс пароля',
     html: `
       <p>Вы запросили сброс пароля. Нажмите на ссылку ниже, чтобы установить новый пароль:</p>
-      <a href="${resetUrl}">${resetUrl}</a>
+      <a href="${resetLink}">${resetLink}</a>
       <p>Ссылка действительна в течение 1 часа.</p>
     `,
   };

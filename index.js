@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -8,10 +9,12 @@ import * as AuthController from './controllers/AuthController.js';
 import * as SessionController from './controllers/SessionController.js';
 import * as FolderController from './controllers/FolderController.js';
 
-const port = 4334;
+const port = process.env.PORT;
+const mongoUri = process.env.MONGO_URI;
+console.log(mongoUri)
 
 mongoose
-    .connect('mongodb+srv://admin:admin@cluster0.2hgd2.mongodb.net/diploma?retryWrites=true&w=majority&appName=Cluster0')
+    .connect(mongoUri)
     .then(() => console.log('MongoDB connected'))
     .catch((error) => console.log('MongoDB error ', error));
 

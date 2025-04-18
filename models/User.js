@@ -14,6 +14,10 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    invalidatedTokens: [{
+        type: Date,
+        default: []
+    }]
 }, {
     timestamps: true,
 });
