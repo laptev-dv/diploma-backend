@@ -5,7 +5,7 @@ export const getAllFolders = async (req, res) => {
   try {
     const { search = '', sort = '-createdAt' } = req.query;
     
-    const filter = {};
+    const filter = { author: req.userId };
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },

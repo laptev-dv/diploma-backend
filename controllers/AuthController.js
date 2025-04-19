@@ -1,4 +1,6 @@
+import 'dotenv/config';
 import { validationResult } from 'express-validator';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import ResetToken from '../models/ResetToken.js';

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import jwt from 'jsonwebtoken';
 import UserModel from '../models/User.js';
 
@@ -11,7 +12,7 @@ export default async (req, res, next) => {
     }
 
     try {
-        const decodedToken = jwt.verify(token, 'secret');
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
         
         // Проверяем, не был ли токен инвалидирован
         const user = await UserModel.findById(decodedToken.userId);

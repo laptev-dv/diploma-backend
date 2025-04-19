@@ -43,12 +43,12 @@ export const createExperiment = async (req, res) => {
 export const getAllExperiments = async (req, res) => {
   try {
     const { sort = '-createdAt', search } = req.query;
-    const filter = {};
+    const filter = { author: req.userId };
     
     if (search) {
       filter.name = { $regex: search, $options: 'i' };
     }
-
+    console.log(filter)
     const experiments = await Experiment.find(filter)
       .sort(sort)
       .populate('author')
@@ -65,7 +65,6 @@ export const getAllExperiments = async (req, res) => {
         ...exp,
         tasksCount,
         sessionsCount,
-        isMine: exp.author._id.toString() === req.userId
       };
     }));
 

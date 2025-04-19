@@ -49,7 +49,7 @@ app.post('/auth/request-password-reset', AuthController.requestPasswordReset);
 app.post('/auth/reset-password', AuthController.resetPassword);
 
 // Эксперименты
-app.get('/experiments', ExperimentController.getAllExperiments);
+app.get('/experiments', checkAuth, ExperimentController.getAllExperiments);
 app.get('/experiments/:id', ExperimentController.getExperimentById);
 app.put('/experiments/:id', checkAuth, ExperimentController.updateExperiment);
 app.delete('/experiments/:id', checkAuth, ExperimentController.deleteExperiment);
@@ -62,7 +62,7 @@ app.delete('/sessions/:id', checkAuth, SessionController.deleteSession);
 app.get('/sessions/:id', checkAuth, SessionController.getSessionById);
 
 // Папки
-app.get('/folders', FolderController.getAllFolders);
+app.get('/folders', checkAuth, FolderController.getAllFolders);
 app.get('/folders/:id', FolderController.getFolderById);
 app.post('/folders', checkAuth, FolderController.createFolder);
 app.put('/folders/:id', checkAuth, FolderController.updateFolder);
