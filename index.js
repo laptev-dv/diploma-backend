@@ -11,7 +11,6 @@ import * as FolderController from './controllers/FolderController.js';
 
 const port = process.env.PORT;
 const mongoUri = process.env.MONGO_URI;
-console.log(mongoUri)
 
 mongoose
     .connect(mongoUri)
