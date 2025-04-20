@@ -1,113 +1,73 @@
-import 'dotenv/config';
-import { validationResult } from 'express-validator';
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcrypt';
+import UserModel from '../models/User.js';
 
-import UserModel from '../models/User.js'
-
-
-export const login = async (req, res) => {
+export const changePassword = async (req, res) => {
     try {
-        const user = await UserModel.findOne({ login: req.body.login });
+        const userId = req.userId;
+        const { currentPassword, newPassword } = req.body;
 
+        const user = await UserModel.findById(userId);
         if (!user) {
-            return res.status(401).json({
-                message: 'Авторизация не удалась',
-            })
+            return res.status(404).json({ message: 'Пользователь не найден' });
         }
 
-        const isValidPassword = await bcrypt.compare(req.body.password, user._doc.passwordHash);
-
+        // Проверяем текущий пароль
+        const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
         if (!isValidPassword) {
-            return res.status(401).json({
-                message: 'Авторизация не удалась',
-            })
+            return res.status(400).json({ message: 'Неверный текущий пароль' });
         }
 
-        const token = jwt.sign(
-            {
-                userId: user._id,
-            },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: '30d',
-            }
-        );
-    
-        const { passwordHash, ...userData } = user._doc
+        // Хешируем новый пароль
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-        res.json({
-            ...userData,
-            token
-        });
+        // Обновляем пароль
+        user.passwordHash = hashedPassword;
+        await user.save();
+
+        res.json({ message: 'Пароль успешно изменен' });
     } catch (error) {
-        console.log(error);
-        res.status(500).json({
-            message: 'Не удалось авторизоваться',
-        });
+        console.error(error);
+        res.status(500).json({ message: 'Ошибка при изменении пароля' });
     }
 };
 
-export const register = async (req, res) => {
+export const deleteAccount = async (req, res) => {
     try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json(errors.array());
+        const userId = req.userId;
+        
+        // Удаляем пользователя
+        const result = await UserModel.findByIdAndDelete(userId);
+        
+        if (!result) {
+            return res.status(404).json({ message: 'Пользователь не найден' });
         }
 
-        const password = req.body.password;
-        const salt = await bcrypt.genSalt(10);
-        const encryptedPassword = await bcrypt.hash(password, salt);
-
-        const doc = new UserModel({
-            login: req.body.login,
-            passwordHash: encryptedPassword,
-        })
-
-        const user = await doc.save();
-
-        const token = jwt.sign(
-            {
-                userId: user._id,
-            },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: '30d',
-            }
-        );
-    
-        const { passwordHash, ...userData } = user._doc
-
-        res.json({
-            ...userData,
-            token
-        });
+        res.json({ message: 'Аккаунт успешно удален' });
     } catch (error) {
-        console.log(error);
-        res.status(500).json({
-            message: 'Не удалось зарегистрироваться',
-        });
+        console.error(error);
+        res.status(500).json({ message: 'Ошибка при удалении аккаунта' });
     }
 };
 
 export const getMe = async (req, res) => {
     try {
         const userId = req.userId;
-        const user = await UserModel.findById(userId)
+        const user = await UserModel.findById(userId);
 
         if (!user) {
-            res.status(404).json({
-                message: 'Не удалось получить данные пользователя',
+            return res.status(404).json({
+                message: 'Пользователь не найден',
             });    
         }
 
-        const { passwordHash, ...userData } = user._doc
+        const { passwordHash, ...userData } = user._doc;
 
         res.json(userData);
     } catch (error) {
         console.log(error);
         res.status(500).json({
-            message: 'Не удалось получить данные пользователя',
+            message: 'Нет доступа',
         });
     }
 };

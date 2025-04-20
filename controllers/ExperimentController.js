@@ -48,7 +48,7 @@ export const getAllExperiments = async (req, res) => {
     if (search) {
       filter.name = { $regex: search, $options: 'i' };
     }
-    console.log(filter)
+
     const experiments = await Experiment.find(filter)
       .sort(sort)
       .populate('author')
