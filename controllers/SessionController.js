@@ -48,6 +48,7 @@ export const getSessionsByExperiment = async (req, res) => {
     const sessions = await Session.find({ experiment: experimentId })
       .populate('user', 'username')
       .populate('results.task')
+      .populate('experiment')
       .sort({ createdAt: -1 });
 
     res.json(sessions.map(session => ({
