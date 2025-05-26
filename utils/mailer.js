@@ -4,13 +4,13 @@ import nodemailer from 'nodemailer';
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: process.env.EMAIL_PORT,
-  secure: true, // true для порта 465
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
   tls: {
-    rejectUnauthorized: false // Только для тестов!
+    rejectUnauthorized: false
   }
 });
 

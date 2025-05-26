@@ -2,7 +2,6 @@ import 'dotenv/config';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import { registerValidation } from './validations/registerValidation.js';
 import checkAuth from './utils/checkAuth.js';
 import * as ExperimentController from './controllers/ExperimentController.js';
 import * as AuthController from './controllers/AuthController.js';
@@ -42,7 +41,7 @@ app.use(express.json());
 
 // Auth routes
 app.post('/auth/login', AuthController.login);
-app.post('/auth/register', registerValidation, AuthController.register);
+app.post('/auth/register', AuthController.register);
 app.post('/auth/logout', checkAuth, AuthController.logout);
 app.post('/auth/request-password-reset', AuthController.requestPasswordReset);
 app.post('/auth/reset-password', AuthController.resetPassword);
