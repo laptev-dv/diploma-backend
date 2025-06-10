@@ -59,6 +59,9 @@ app.get('/experiments/:experimentId/sessions', checkAuth, SessionController.getS
 app.delete('/sessions/:id', checkAuth, SessionController.deleteSession);
 app.get('/sessions/:id', checkAuth, SessionController.getSessionById);
 
+// Экспорт в PDF
+app.post('/sessions/:id/export-pdf', checkAuth, SessionController.exportSessionToPDF);
+
 // Папки
 app.get('/folders', checkAuth, FolderController.getAllFolders);
 app.get('/folders/:id', FolderController.getFolderById);

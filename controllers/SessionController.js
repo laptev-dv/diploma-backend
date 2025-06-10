@@ -1,5 +1,9 @@
 import Session from '../models/Session.js';
 import Experiment from '../models/Experiment.js';
+import { exec } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 export const createSession = async (req, res) => {
   try {
@@ -174,3 +178,65 @@ function calculateDetailedStats(results) {
     };
   });
 }
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+export const exportSessionToPDF = async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id)
+      .populate('experiment')
+      .populate('results.task');
+
+    if (!session) {
+      return res.status(404).json({ message: 'Сессия не найдена' });
+    }
+
+    // Проверка прав доступа
+    if (session.user._id.toString() !== req.userId && 
+        session.experiment.author.toString() !== req.userId) {
+      return res.status(403).json({ message: 'Нет прав на экспорт этой сессии' });
+    }
+
+    // Подготовка данных для Python скрипта
+    const sessionData = session.toObject();
+    sessionData.results = calculateDetailedStats(session.results);
+
+    // Создаем временный файл с данными
+    const tempDir = path.join(__dirname, '../../temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir);
+    }
+
+    const inputFilePath = path.join(tempDir, `session_${session._id}.json`);
+    fs.writeFileSync(inputFilePath, JSON.stringify(sessionData));
+
+    const pythonScriptPath = path.join(__dirname, '../utils/pythonPdfGenerator/export_pdf.py');
+
+    // Вызываем Python скрипт
+    exec(`python3 ${pythonScriptPath} ${inputFilePath}`, (error, stdout, stderr) => {
+      if (error) {
+        console.error('Error executing Python script:', error);
+        return res.status(500).json({ message: 'Ошибка при генерации PDF', error: error.message });
+      }
+
+      const pdfPath = inputFilePath.replace('.json', '.pdf');
+      
+      if (!fs.existsSync(pdfPath)) {
+        return res.status(500).json({ message: 'PDF не был сгенерирован' });
+      }
+
+      // Отправляем файл и удаляем временные файлы
+      res.download(pdfPath, `session_${session._id}.pdf`, (err) => {
+        fs.unlinkSync(inputFilePath);
+        fs.unlinkSync(pdfPath);
+        if (err) {
+          console.error('Error sending PDF:', err);
+        }
+      });
+    });
+
+  } catch (error) {
+    console.error('Error exporting to PDF:', error);
+    res.status(500).json({ message: 'Ошибка при экспорте в PDF', error: error.message });
+  }
+};
