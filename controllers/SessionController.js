@@ -213,7 +213,7 @@ export const exportSessionToPDF = async (req, res) => {
     const pythonScriptPath = path.join(__dirname, '../utils/pythonPdfGenerator/export_pdf.py');
 
     // Вызываем Python скрипт
-    exec(`python3 ${pythonScriptPath} ${inputFilePath}`, (error, stdout, stderr) => {
+    exec(`python ${pythonScriptPath} ${inputFilePath}`, (error, stdout, stderr) => {
       if (error) {
         console.error('Error executing Python script:', error);
         return res.status(500).json({ message: 'Ошибка при генерации PDF', error: error.message });

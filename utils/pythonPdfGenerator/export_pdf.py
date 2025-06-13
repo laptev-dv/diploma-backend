@@ -5,7 +5,7 @@ from datetime import datetime
 from fpdf import FPDF
 import matplotlib.pyplot as plt
 import numpy as np
-import uuid  # Добавим для генерации уникальных имен файлов
+import uuid
 
 class PDFReport(FPDF):    
     
@@ -109,8 +109,8 @@ def generate_pdf(input_file, output_file):
 
     dir_path = os.path.dirname(os.path.abspath(__file__))
 
-    pdf.add_font("noto-serif", style="B", fname=f'{dir_path}/NotoSerif-Bold.ttf')
-    pdf.add_font("noto-serif", style="", fname=f'{dir_path}/NotoSerif-Regular.ttf')
+    pdf.add_font("noto-serif", style="B", fname=f'{dir_path}/NotoSerif-Bold.ttf', uni=True)
+    pdf.add_font("noto-serif", style="", fname=f'{dir_path}/NotoSerif-Regular.ttf', uni=True)
     pdf.add_page()
     
     pdf.add_title('Основная информация о сессии')
